@@ -1,6 +1,5 @@
 ##### This script simulates vectors of dummy variables to examine expected vectors of random variables ######
-# Stuart Functions
-source("R/Stuart_Nature_Rcode_functions.R")
+# Get Functions
 source("R/Genomic_Parallelism_Rcode_functions.R")
 
 # Load packages
