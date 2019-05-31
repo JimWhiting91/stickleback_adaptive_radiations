@@ -253,6 +253,31 @@ plot_cor_mat<-function(input_matrix,cor=FALSE){
     guides(fill = guide_colorbar(barwidth = 7, barheight = 1,
                                  title.position = "top", title.hjust = 0.5))
 }
+                                    
+                                    
+# === f.deltaL ==== This comes from Stuart et al 2017, Nature Evolution & Ecology
+f.deltaL <- function(table.of.diff.in.means, select.col, unique.id){
+  get.vectlength <- function(vect){
+    return(sqrt(sum(vect^2, na.rm = TRUE)))
+  }
+  table.of.diff.in.means.t <- table.of.diff.in.means[,select.col]
+  length.of.vector.by.watershed <- apply(table.of.diff.in.means.t, 1 ,get.vectlength) #1 signifies by row. apply the function to every row in the input dataframe
+  length.diff.matrix <- matrix(nrow = length(unique.id), ncol = length(unique.id))
+  for(i in 1:length(unique.id)){
+    for(j in 1:length(unique.id)){
+      length.diff.matrix[i,j] <-round(length.of.vector.by.watershed[i] - length.of.vector.by.watershed[j], 3)
+    }
+  }
+  rownames(length.diff.matrix) <- unique.id
+  colnames(length.diff.matrix) <- unique.id
+  
+  length.of.vector.by.watershed <- as.data.frame(length.of.vector.by.watershed)
+  length.of.vector.by.watershed$wshd <- unique.id
+  length.output <- list(length.diff.matrix, length.of.vector.by.watershed) 
+  return(length.output)
+}
+# === end) f.deltaL ====
+
 
 reorder_cormat <- function(cormat){
   # Mirror matrix
