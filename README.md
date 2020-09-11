@@ -1,2 +1,2 @@
 # Stickleback Adaptive Radiations
-Scripts associated with Magalhaes et al 2019
+Scripts associated with Magalhaes and Whiting et al 2020
