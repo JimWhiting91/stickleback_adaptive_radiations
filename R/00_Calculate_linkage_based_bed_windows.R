@@ -8,7 +8,6 @@ lapply(lib,library,character.only=TRUE)
 
 # Source functions
 source("R/Genomic_Parallelism_Rcode_functions.R")
-setwd("/Users/jw962/Google Drive/PNAS_Resubmission_Online-20180823")
 
 # Need to calculate over each radiation independently
 rads<-c("Alaska","BC","Iceland","Scotland")
@@ -117,12 +116,12 @@ return(list(SNP_pos,window_out))
 # We are aiming to match the output of bed files constructed in bedtools
 
 # First we create a vector of variable names
-variable_names<-c("Ca","Gyro","Na","pH","Schisto","Zn",
+variable_names<-c("Ca","Gyro","Na","pH","Schisto","Zn","Lake_Area",
                             "Shape_PC1","Shape_PC2","Shape_PC3",
                             "DS1","DS2","PS","LP","HP","BAP", "Plate_N",
                             "Gill_Raker_L","Gill_Raker_N")
 # Now we list the corresponding column identifiers
-columns_ID_vector<-c(11,14,8,2,17,5,
+columns_ID_vector<-c(11,14,8,2,17,5,77,
                                20,23,26,
                                47,50,53,56,59,62,65,
                                71,74)
@@ -133,12 +132,12 @@ mclapply(1:length(rads),function(x){
   # Get new tables
   cM_pos<-rad_out[[x]][[1]]
   LD_windows<-rad_out[[x]][[2]]
-  dd<-data.frame(read.table(paste0("data/raw_bayenv_outputs/",rads[x],"_EnvPheno_sorted_AVG_v2.txt")))
+  dd<-data.frame(read.table(paste0("data/raw_bayenv_outputs/",rads[x],"_EnvPheno_sorted_AVG_v3_lakes.txt")))
   # Remove column of 0s
   dd<-dd[,-2]
   
   # Read in the relevant SNP positions
-  dd_SNP<-data.frame(fread(paste0("data/",rads[x],"_CHRBP"),header=F))
+  dd_SNP<-data.frame(fread(paste0("data/raw_bayenv_outputs/",rads[x],"_CHRBP"),header=F))
   
   # Prior to looking at variables, we want to assign cM values
   cM_pos$SNP_ID<-paste0(cM_pos$CHR,":",cM_pos$BP)
@@ -191,7 +190,7 @@ mclapply(1:length(rads),function(x){
                       outlier_windows$outlier_N),
                       ncol=4)
     write.table(out_mat,
-                paste0("data/outlier_beds/cM/cM_windows_",rads[x],"_",variable_names[i],"_cleaned_outliers.bed_sorted.bed"),
+                paste0("data/outlier_beds/cM/cM_windows_",rads[x],"_",variable_names[i],"_cleaned_outliers_v2.bed"),
                 quote = F,row.names = F,sep="\t",col.names = F)
     
   })

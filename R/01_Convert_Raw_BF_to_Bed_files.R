@@ -28,14 +28,15 @@
 #St.Length [68:70]
 #Gill.Raker.N [71:73]
 #Resid.Raker.L [74:76]
+# Lake area [77:79]
 
 # First we create a vector of variable names
-variable_names<-as.vector(c("Ca","Gyro","Na","pH","Schisto","Zn",
+variable_names<-as.vector(c("Ca","Gyro","Na","pH","Schisto","Zn","Lake_Area",
                             "Shape_PC1","Shape_PC2","Shape_PC3",
                             "DS1","DS2","PS","LP","HP","BAP", "Plate_N",
                             "Gill_Raker_L","Gill_Raker_N"))
 # Now we list the corresponding column identifiers
-columns_ID_vector<-as.vector(c(11,14,8,2,17,5,
+columns_ID_vector<-as.vector(c(11,14,8,2,17,5,77,
                                20,23,26,
                                47,50,53,56,59,62,65,
                                71,74))
@@ -46,7 +47,7 @@ radiation_names<-as.vector(c("Alaska","BC","Iceland","Scotland"))
 # The same analysis will be performed over each radiation, so write a function
 radiation_cleaner<-function(x){
   # Read in the data
-  dd<-read.table(paste0("data/raw_bayenv_outputs/",radiation_names[x],"_EnvPheno_sorted_AVG_v2.txt"),header=F)
+  dd<-read.table(paste0("data/raw_bayenv_outputs/",radiation_names[x],"_EnvPheno_sorted_AVG_v3_lakes.txt"),header=F)
   
   # Read in the SNP IDs
   dd_SNP<-read.table(paste0("data/raw_bayenv_outputs/",radiation_names[x],"_CHRBP"),header=F)

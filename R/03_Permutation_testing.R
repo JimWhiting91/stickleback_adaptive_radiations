@@ -14,11 +14,11 @@ lapply(lib,library,character.only=TRUE)
 grouping_vector<-as.vector(c("50k","75k","100k","200k","cM"))
 
 # Define the variables
-variables_vector<-as.vector(c("Ca","Gyro","Na","pH","Schisto","Zn",
+variables_vector<-as.vector(c("Ca","Gyro","Na","pH","Schisto","Zn","Lake_Area",
                               "Shape_PC1","Shape_PC2","Shape_PC3",
                               "DS1","DS2","PS","LP","HP","BAP", "Plate_N",
                               "Gill_Raker_L","Gill_Raker_N"))
-env_pheno_vec<-c(rep("Env",6),
+env_pheno_vec<-c(rep("Env",7),
                  rep("Shape",3),
                  rep("Armour",7),
                  rep("Gill",2))
@@ -30,7 +30,7 @@ iterations<-10000
 
 # Run over all window/gene sizes
 lapply(1:length(grouping_vector),function(x){
-  
+
   # Read in data for SNP counts for each radiation and save
   for (i in 1:length(radiations_vector)){
     dd_SNP_count<-read.table(paste0("data/outlier_beds/",radiations_vector[i],"_",grouping_vector[x],"_windows_SNPcount.bed"),header=F,sep='\t',fill = TRUE)
@@ -55,7 +55,7 @@ lapply(1:length(grouping_vector),function(x){
     # For the variable we need to know the N of associated SNPs per radiation
     # Read in data for outlier SNPs
     for (i in 1:length(radiations_vector)){
-      dd_outliers<-read.table(paste0("data/outlier_beds/",grouping_vector[x],"/",grouping_vector[x],"_windows_",radiations_vector[i],"_",variables_vector[y],"_cleaned_outliers.bed_sorted.bed"),
+      dd_outliers<-read.table(paste0("data/outlier_beds/",grouping_vector[x],"/",grouping_vector[x],"_windows_",radiations_vector[i],"_",variables_vector[y],"_cleaned_outliers_v2.bed"),
                               header=F,sep='\t',fill = T)
       dd_outliers$window_id<-paste0(dd_outliers$V1,":",dd_outliers$V2,"-",dd_outliers$V3)
       colnames(dd_outliers)<-c("chr","BP1","BP2","SNP_N","window_id")
@@ -71,17 +71,9 @@ lapply(1:length(grouping_vector),function(x){
     # We also want the number of associated regions/genes
     # Read in data for associated region/gene counts
     dd_regions<-read.table(paste0("outputs/",grouping_vector[x],"/",grouping_vector[x],"_",variables_vector[y],"_top_outliers_by_rad.txt"),header=T)
-    # Split data file up by radiation
-    for (i in 1:length(levels(dd_regions$radiation))){
-      regions_tmp<-dd_regions[dd_regions$radiation == levels(dd_regions$radiation)[i],]
-      assign(paste0(levels(dd_regions$radiation)[i],"_dd_regions"),regions_tmp)
-    }
-    
+
     # Save each outliers file to a list to be referenced later
-    regions_list<-list(Alaska_dd_regions,
-                       BC_dd_regions,
-                       Iceland_dd_regions,
-                       Scotland_dd_regions)
+    regions_list<-lapply(unique(dd_regions$radiation),function(rad){return(dd_regions[dd_regions$radiation == rad,])})
     
     # Run the permutation with calculate.overlap each time
     # The desired output is a list of lists of 11 elements, each showing overlap in all 4 (NIBA), 3 and 2.
@@ -153,6 +145,9 @@ lapply(1:length(grouping_vector),function(x){
                 quote = F)
     }
     
+    # Read in sim data
+    perm_output_SNP_all<-read.table(paste0("outputs/",grouping_vector[x],"/03/",grouping_vector[x],"_",variables_vector[y],"_bySNP_",iterations,"runs_FULLSIM.txt"),header=T)
+    
     # Read in observed data and calculate p-values
     obs_dd<-read.table(paste0("outputs/",grouping_vector[x],"/",grouping_vector[x],"_Venn_overlaps.txt"))
     colnames(obs_dd)<-c("ABIN","ABI","ABN","AIN","BIN","AB","AI","AN","BI","BN","IN","A","B","I","N")
@@ -223,6 +218,9 @@ lapply(1:length(grouping_vector),function(x){
               row.names = F,
               quote = F)
   }
+    
+  # Read in perm data
+  perm_output_region_all<-read.table(paste0("outputs/",grouping_vector[x],"/03/",grouping_vector[x],"_",variables_vector[y],"_byREGION_",iterations,"runs_FULLSIM.txt"),header=T)
   
   # Read in observed data and calculate p-values
   obs_dd<-read.table(paste0("outputs/",grouping_vector[x],"/",grouping_vector[x],"_Venn_overlaps.txt"))
@@ -326,6 +324,35 @@ write.table(windows_out,
             "outputs/03_Expected_N_of_shared_windows_ALL.txt",
             quote = F,row.names=F)
 
+##### Combine windows_out with observed values and FDR...
+comparisons <- colnames(windows_out)[1:11]
+comp_names <- c("All 4",
+                "Alaska & BC & Iceland","Alaska & BC & Scotland","Alaska & Iceland & Scotland","BC & Iceland & Scotland",
+                "Alaska & BC","Alaska & Iceland","Alaska & Scotland","BC & Iceland","BC & Scotland","Iceland & Scotland")
+
+exp_obs_fdr <- data.frame(rbindlist(lapply(variables_vector,function(x){
+  
+  tmp <- data.frame(Variable = x,
+                    Comparison = comp_names,
+                    Expected = round(t(windows_out[windows_out$var == x & windows_out$window == "50k",1:11]),3))
+  rownames(tmp)<-NULL
+  colnames(tmp)[3]<-"Expected"
+  
+  # Fetch observed
+  tmp$Observed <- t(read.table(paste0("outputs/50k/50k_",x,"Venn_overlaps.txt"),header=T)[,1:11])
+  
+  # Fetch FDRs...
+  tmp_fdr <- t(read.table(paste0("outputs/50k/03/50k_ALL_byRegion_",iterations,"runs_pvals.txt"))[x,12:22])
+  tmp$FDR <- tmp_fdr[,1]
+  
+  return(tmp)
+})))
+
+# Write supp table
+write.csv(exp_obs_fdr,
+          "tables/TableSX_exp_obs_fdr_50kb_windows_by_venn_segments.csv",
+          quote = F,row.names = F)
+
 
 ##### Read back in data and calculate the Expected for 2 or more (ie. Not grouping specific) #####
 
@@ -386,13 +413,17 @@ plot_dd[plot_dd$group == "Shape" & plot_dd$count_type == "Observed","count_type"
 plot_dd[plot_dd$group == "Gill" & plot_dd$count_type == "Observed","count_type"]<-"Observed Gill Raker"
 
 # Conf levels
-conf<-unlist(list(c(variables_out$UL),rep(NA,18)))
+conf<-unlist(list(c(variables_out$UL),rep(NA,19)))
 # Labels
-asterisk_labs<-c(rep(NA,18),plot_dd[plot_dd$count_type != "Expected","FDR_asterisk"])
+asterisk_labs<-c(rep(NA,19),plot_dd[plot_dd$count_type != "Expected","FDR_asterisk"])
 
 # Plot
 dodge<-position_dodge(.75)
-p1<-ggplot(plot_dd,aes(x=var,y=Count,fill=count_type))+
+
+# Set order
+plot_dd$var<-gsub("_"," ",plot_dd$var)
+plot_dd$var_F<-factor(plot_dd$var,levels=unique(plot_dd$var))
+p1<-ggplot(plot_dd,aes(x=var_F,y=Count,fill=count_type))+
   geom_errorbar(data=plot_dd,aes(ymin=0.1,ymax=conf),width=.2,position=dodge) +
   geom_bar(position = dodge, stat="identity",width=0.75)+
   theme_bw()+
@@ -433,7 +464,7 @@ tmp_2<-data.frame(rbindlist(lapply(1:length(tmp_dd),function(y){
   col_dd<-data.frame(score=1-tmp_dd[,y],
                      var=rownames(tmp_dd),
                      rad=rep(colnames(tmp_dd)[y]),
-                     type=c(rep("Env",6),rep("Pheno",12)))
+                     type=c(rep("Env",7),rep("Pheno",12)))
   return(col_dd)
 })))
 
@@ -472,10 +503,10 @@ dev.off()
 
 ##### Read back in data and calculate pooled expected and p-vals for env and pheno totals #####
 
-windows_out<-data.frame(rbindlist(lapply(1:length(grouping_vector),function(x){
+env_exp_out<-data.frame(rbindlist(lapply(1:length(grouping_vector),function(x){
   
   # Env
-  env_out<-lapply(1:6,function(y){
+  env_out<-lapply(1:7,function(y){
     
     # Read in and calculate means
     sim_dd<-read.table(paste0("outputs/",grouping_vector[x],"/03/",grouping_vector[x],"_",variables_vector[y],"_byREGION_10000runs_FULLSIM.txt"),header=T)
@@ -491,8 +522,8 @@ windows_out<-data.frame(rbindlist(lapply(1:length(grouping_vector),function(x){
   })
   
   # Calculate pooled expected
-  env_all<-rbind(env_out[[1]][[1]],env_out[[2]][[1]],env_out[[3]][[1]],env_out[[4]][[1]],env_out[[5]][[1]],env_out[[6]][[1]])
-  env_all_obs<-rbind(env_out[[1]][[2]],env_out[[2]][[2]],env_out[[3]][[2]],env_out[[4]][[2]],env_out[[5]][[2]],env_out[[6]][[2]])
+  env_all<-rbind(env_out[[1]][[1]],env_out[[2]][[1]],env_out[[3]][[1]],env_out[[4]][[1]],env_out[[5]][[1]],env_out[[6]][[1]],env_out[[7]][[1]])
+  env_all_obs<-rbind(env_out[[1]][[2]],env_out[[2]][[2]],env_out[[3]][[2]],env_out[[4]][[2]],env_out[[5]][[2]],env_out[[6]][[2]],env_out[[7]][[2]])
   
   # All 4
   env4<-data.frame(Ca=env_all[env_all$var=="Ca","ABIN"],
@@ -500,7 +531,8 @@ windows_out<-data.frame(rbindlist(lapply(1:length(grouping_vector),function(x){
                    Na=env_all[env_all$var=="Na","ABIN"],
                    pH=env_all[env_all$var=="pH","ABIN"],
                    Schisto=env_all[env_all$var=="Schisto","ABIN"],
-                   Zn=env_all[env_all$var=="Zn","ABIN"])
+                   Zn=env_all[env_all$var=="Zn","ABIN"],
+                   Lake_Area=env_all[env_all$var=="Lake_Area","ABIN"])
   
   env_out_dd<-data.frame(Exp=mean(rowSums(env4)),
                      UL=quantile(rowSums(env4),probs = 0.95),
@@ -515,7 +547,8 @@ windows_out<-data.frame(rbindlist(lapply(1:length(grouping_vector),function(x){
                    Na=rowSums(env_all[env_all$var=="Na",2:5]),
                    pH=rowSums(env_all[env_all$var=="pH",2:5]),
                    Schisto=rowSums(env_all[env_all$var=="Schisto",2:5]),
-                   Zn=rowSums(env_all[env_all$var=="Zn",2:5]))
+                   Zn=rowSums(env_all[env_all$var=="Zn",2:5]),
+                   Lake_Area=rowSums(env_all[env_all$var=="Lake_Area",2:5]))
   
   env_out_dd<-data.frame(Exp=mean(rowSums(env3)),
                          UL=quantile(rowSums(env3),probs = 0.95),
@@ -524,9 +557,30 @@ windows_out<-data.frame(rbindlist(lapply(1:length(grouping_vector),function(x){
                          window=grouping_vector[x],
                          p.value=length(env3[rowSums(env3) >= sum(unlist(list(env_all_obs[,2:5]))),1])/iterations)
   
+  # Any 2
+  env2<-data.frame(Ca=rowSums(env_all[env_all$var=="Ca",6:11]))
+  for(i in 1:7){
+   # print(i)
+    env2$new<-rowSums(env_all[env_all$var==variables_vector[i],6:11])
+    colnames(env2)[i]<-variables_vector[i]
+  }
+  
+  env_out_dd<-data.frame(Exp=mean(rowSums(env2)),
+                           UL=quantile(rowSums(env2),probs = 0.95),
+                           Obs=sum(rowSums(env_all_obs[,6:11])),
+                           var="env",
+                           window=grouping_vector[x],
+                           p.value=length(env2[rowSums(env2) >= sum(rowSums(env_all_obs[,6:11])),1])/iterations)
+  
+  
+  
+})))
+
+# Same for pheno
+pheno_exp_out<-data.frame(rbindlist(lapply(1:length(grouping_vector),function(x){
 
   # Pheno
-  pheno_out<-lapply(7:18,function(y){
+  pheno_out<-lapply(8:19,function(y){
     
     # Read in and calculate means
     sim_dd<-read.table(paste0("outputs/",grouping_vector[x],"/03/",grouping_vector[x],"_",variables_vector[y],"_byREGION_10000runs_FULLSIM.txt"),header=T)
@@ -549,9 +603,9 @@ windows_out<-data.frame(rbindlist(lapply(1:length(grouping_vector),function(x){
 
   # All 4
   pheno4<-data.frame(Shape_PC1=pheno_all[pheno_all$var=="Shape_PC1","ABIN"])
-  for(i in 8:18){
+  for(i in 8:19){
     pheno4$new<-pheno_all[pheno_all$var==variables_vector[i],"ABIN"]
-    colnames(pheno4)[i-6]<-variables_vector[i]
+    colnames(pheno4)[i-7]<-variables_vector[i]
   }
   
   pheno_out_dd<-data.frame(Exp=mean(rowSums(pheno4)),
@@ -563,9 +617,9 @@ windows_out<-data.frame(rbindlist(lapply(1:length(grouping_vector),function(x){
   
   # Any 3
   pheno3<-data.frame(Shape_PC1=rowSums(pheno_all[pheno_all$var=="Shape_PC1",2:5]))
-  for(i in 8:18){
+  for(i in 8:19){
     pheno3$new<-rowSums(pheno_all[pheno_all$var==variables_vector[i],2:5])
-    colnames(pheno3)[i-6]<-variables_vector[i]
+    colnames(pheno3)[i-7]<-variables_vector[i]
   }
   
   pheno_out_dd<-data.frame(Exp=mean(rowSums(pheno3)),
@@ -575,7 +629,23 @@ windows_out<-data.frame(rbindlist(lapply(1:length(grouping_vector),function(x){
                          window=grouping_vector[x],
                          p.value=length(pheno3[rowSums(pheno3) >= sum(rowSums(pheno_all_obs[,2:5])),1])/iterations)
   
+  # Any 2
+  pheno2<-data.frame(Shape_PC1=rowSums(pheno_all[pheno_all$var=="Shape_PC1",6:11]))
+  for(i in 8:19){
+    pheno2$new<-rowSums(pheno_all[pheno_all$var==variables_vector[i],6:11])
+    colnames(pheno2)[i-7]<-variables_vector[i]
+  }
+  
+  pheno_out_dd<-data.frame(Exp=mean(rowSums(pheno2)),
+                           UL=quantile(rowSums(pheno2),probs = 0.95),
+                           Obs=sum(rowSums(pheno_all_obs[,6:11])),
+                           var="pheno",
+                           window=grouping_vector[x],
+                           p.value=length(pheno2[rowSums(pheno2) >= sum(rowSums(pheno_all_obs[,6:11])),1])/iterations)
+  
   
 })))
 
-
+# Get res
+env_exp_out
+pheno_exp_out

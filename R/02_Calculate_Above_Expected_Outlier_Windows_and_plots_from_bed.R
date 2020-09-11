@@ -14,14 +14,15 @@ lapply(lib,library,character.only=TRUE)
 # ------
 
 # Define the grouping
-grouping_vector<-as.vector(c("50k","75k","100k","200k","cM"))
+grouping_vector<-c("50k","75k","100k","200k","cM")
+#grouping_vector<-c("cM")
 # Define the variables
-variables_vector<-as.vector(c("Ca","Gyro","Na","pH","Schisto","Zn",
+variables_vector<-c("Ca","Gyro","Na","pH","Schisto","Zn","Lake_Area",
                               "Shape_PC1","Shape_PC2","Shape_PC3",
                               "DS1","DS2","PS","LP","HP","BAP", "Plate_N",
-                              "Gill_Raker_L","Gill_Raker_N"))
+                              "Gill_Raker_L","Gill_Raker_N")
 # Analysis to be looped over Radiations
-radiations_vector<-as.vector(c("Alaska","BC","Iceland","Scotland"))
+radiations_vector<-c("Alaska","BC","Iceland","Scotland")
 
 # Define the function
 binomial_exp_calculations<-function(x){
@@ -50,7 +51,7 @@ binomial_exp_calculations<-function(x){
       dd_SNP_count$window_id<-paste0(dd_SNP_count$V1,":",dd_SNP_count$V2,"-",dd_SNP_count$V3)
       
       #Read in data for outlier SNPs
-      dd_outliers<-read.table(paste0("data/outlier_beds/",grouping_vector[x],"/",grouping_vector[x],"_windows_",radiations_vector[i],"_",variables_vector[j],"_cleaned_outliers.bed_sorted.bed"),
+      dd_outliers<-read.table(paste0("data/outlier_beds/",grouping_vector[x],"/",grouping_vector[x],"_windows_",radiations_vector[i],"_",variables_vector[j],"_cleaned_outliers_v2.bed"),
                               header=F,sep='\t',fill = T)
 
       dd_outliers$window_id<-paste0(dd_outliers$V1,":",dd_outliers$V2,"-",dd_outliers$V3)
@@ -315,6 +316,7 @@ binomial_exp_calculations<-function(x){
     chrNam<-c("1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","20","21")
     
     # Plot manhattans in ggplot
+    dd_manhat_all[dd_manhat_all$resid == 0,"resid"] <- -1
     manhattan_p<-ggplot(dd_manhat_all,aes(x=wind_start,y=resid,colour=chr_colour))+
       geom_segment(aes(x = wind_start, y = 0, xend = wind_end, yend = resid))+
       facet_wrap(~radiation,ncol=1,scales= "free_y",strip.position="right")+
@@ -362,6 +364,10 @@ write.table(total_ass_count_out,
 
 
 ##### Histograms of count data results #####
+# Read back in data if needs be...
+if(file.exists("tables/Counts_Associated_SNP_Window_All_vars_All_rads.txt")){
+  total_ass_count_out <- read.table("tables/Counts_Associated_SNP_Window_All_vars_All_rads.txt",header=T)
+}
 # For each window size, produce side by side comparisons of associated SNP counts and associated window counts
 hist_graphs<-mclapply(1:length(grouping_vector),function(x){
   # Subset
@@ -415,9 +421,12 @@ dev.off()
 
 ##### Are there differences in the numbers of called SNPs or windows across variables? #####
 # First do SNP test
+# 50kb, x=1
+x<-1
 SNP_tmp<-total_ass_count_out[total_ass_count_out$window_size == grouping_vector[x],]
 # Model
 snp.glm<-glm(ass.snp.count~variable+radiation,SNP_tmp,family="gaussian")
+
 # Check residuals
 print(shapiro.test(snp.glm$residuals)) # OK
 print(anova(snp.glm,test="F"))
