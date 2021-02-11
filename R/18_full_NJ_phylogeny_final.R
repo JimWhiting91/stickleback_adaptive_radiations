@@ -10,7 +10,7 @@ gen_dd <- vcfR2genind(vcf_in)
 
 ######################################################################
 # Build tree and bootstrap
-pop_tree <- aboot(gen_dd, tree = "bionj", distance = nei.dist, sample = 6, showtree = T, cutoff = 0, quiet = F,threads = 6,root = FALSE)
+pop_tree <- aboot(gen_dd, tree = "bionj", distance = nei.dist, sample = 100, showtree = T, cutoff = 0, quiet = F,threads = 6,root = FALSE)
 saveRDS(pop_tree,"all_marine_fresh_phylo_bootstrapped_tree.rds")
 pop_tree <- readRDS("outputs/all_marine_fresh_phylo_bootstrapped_tree.rds")
 
